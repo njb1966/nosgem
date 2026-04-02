@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
 #include "arp.h"
 #include "dns.h"
 #include "packet.h"
@@ -21,14 +20,14 @@
 #include "utils.h"
 
 extern "C" {
-#include <wolfssl/ssl.h>
 #include "tls_io.h"
-#include "entropy.h"
 }
+
+#include "url.h"
+#include "gemini.h"
 
 #define DEFAULT_HOST "geminiprotocol.net"
 #define DEFAULT_PORT 1965
-#define RESP_BUF_LEN 512
 
 static volatile int userAbort = 0;
 
@@ -42,16 +41,26 @@ static void shutdown_stack( int rc ) {
 int main( int argc, char *argv[] ) {
     const char   *host = DEFAULT_HOST;
     unsigned int  port = DEFAULT_PORT;
-    nos_tls_ctx_t tls;
-    char          request[256];
-    char          respBuf[RESP_BUF_LEN];
-    int           bytes;
-    int           reqLen;
+    const char   *rawUrl = NULL;
+    nos_url_t     url;
+    nos_gemini_resp_t resp;
+    nos_gemini_err_t  err;
+    char          body[8192];
+    unsigned int  bodyLen;
 
-    if ( argc >= 2 ) host = argv[1];
+    if ( argc >= 2 ) rawUrl = argv[1];
     if ( argc >= 3 ) port = (unsigned int)atoi( argv[2] );
 
     printf( "NOSgem TLS test\n" );
+    if ( rawUrl && strncmp( rawUrl, "gemini://", 9 ) == 0 ) {
+        if ( nos_url_parse( rawUrl, &url ) != 0 ) {
+            fprintf( stderr, "Invalid URL: %s\n", rawUrl );
+            return 1;
+        }
+        host = url.host;
+        port = url.port;
+    }
+
     printf( "Target: %s:%u\n\n", host, port );
 
     /* mTCP stack init -- must happen before any TCP/DNS calls */
@@ -72,35 +81,40 @@ int main( int argc, char *argv[] ) {
         shutdown_stack( 1 );
     }
 
-    /* Connect */
-    printf( "Connecting...\n" );
-    if ( nos_tls_connect( &tls, host, port ) != 0 ) {
-        fprintf( stderr, "Connection failed\n" );
+    /* Gemini request */
+    if ( rawUrl && strncmp( rawUrl, "gemini://", 9 ) == 0 ) {
+        /* url already parsed */
+    } else {
+        url.host[0] = '\0';
+        url.path[0] = '\0';
+        url.port = port;
+        if ( strlen( host ) >= sizeof( url.host ) ) {
+            fprintf( stderr, "Host name too long\n" );
+            shutdown_stack( 1 );
+        }
+        strcpy( url.host, host );
+        strcpy( url.path, "/" );
+    }
+
+    printf( "Requesting: gemini://%s:%u%s\n\n", url.host, url.port, url.path );
+
+    if ( nos_gemini_request( &url, &resp, body, sizeof( body ), &bodyLen, &err ) != 0 ) {
+        fprintf( stderr, "Gemini request failed: %s\n", err.msg[0] ? err.msg : "unknown" );
         shutdown_stack( 1 );
     }
-    printf( "TLS handshake complete!\n" );
-    printf( "Cipher: %s\n\n", wolfSSL_get_cipher_name( tls.ssl ) );
 
-    /* Send Gemini request: "gemini://host/\r\n" */
-    reqLen = sprintf( request, "gemini://%s/\r\n", host );
-    if ( wolfSSL_write( tls.ssl, request, reqLen ) != reqLen ) {
-        fprintf( stderr, "Send failed\n" );
-        nos_tls_close( &tls );
-        shutdown_stack( 1 );
+    if ( resp.status >= 20 && resp.status < 30 ) {
+        printf( "--- Response ---\n" );
+        if ( bodyLen >= sizeof( body ) ) bodyLen = sizeof( body ) - 1;
+        body[bodyLen] = '\0';
+        printf( "%s", body );
+        if ( userAbort ) printf( "\n(Aborted)\n" );
+        printf( "\n--- End ---\n" );
+    } else {
+        printf( "Status: %d\n", resp.status );
+        printf( "Meta: %s\n", resp.meta );
     }
 
-    /* Read and print response */
-    printf( "--- Response ---\n" );
-    while (1) {
-        bytes = wolfSSL_read( tls.ssl, respBuf, RESP_BUF_LEN - 1 );
-        if ( bytes <= 0 ) break;
-        respBuf[bytes] = '\0';
-        printf( "%s", respBuf );
-        if ( userAbort ) break;
-    }
-    printf( "\n--- End ---\n" );
-
-    nos_tls_close( &tls );
     wolfSSL_Cleanup();
     shutdown_stack( 0 );
     return 0;
