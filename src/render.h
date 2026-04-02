@@ -14,6 +14,10 @@ typedef struct {
 typedef struct {
     nos_link_t links[NOS_MAX_LINKS];
     unsigned int link_count;
+    unsigned int lines_printed;
+    unsigned int page_lines;
+    int (*pause_fn)(void *user);
+    void *pause_user;
 } nos_render_ctx_t;
 
 typedef struct {
@@ -32,6 +36,7 @@ int nos_render_gemtext(const char *body, unsigned int len, nos_render_ctx_t *ctx
 /*
  * Streaming renderer helpers
  */
+void nos_render_ctx_init(nos_render_ctx_t *ctx);
 void nos_render_stream_init(nos_render_stream_t *st, nos_render_ctx_t *ctx);
 int nos_render_stream_feed(nos_render_stream_t *st, const char *data, unsigned int len);
 int nos_render_stream_flush(nos_render_stream_t *st);

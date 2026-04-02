@@ -115,6 +115,23 @@ TLSTEST_C_SRC = \
     src/render.c
 
 # ---------------------------------------------------------------------------
+# NOSGEM application sources
+# ---------------------------------------------------------------------------
+NOSGEM_CPP_SRC = \
+    src/tls_io.cpp
+
+NOSGEM_C_SRC = \
+    src/main.c \
+    src/entropy.c \
+    src/url.c \
+    src/gemini.c \
+    src/tofu.c \
+    src/gemtext.c \
+    src/render.c \
+    src/nav.c \
+    src/ui.c
+
+# ---------------------------------------------------------------------------
 # Derived object lists (all flat in OBJDIR)
 # ---------------------------------------------------------------------------
 WC_OBJS       = $(patsubst %.c,$(OBJDIR)/%.obj,$(notdir $(WC_SRC)))
@@ -128,6 +145,10 @@ MTCP_OBJS     = $(MTCP_CPP_OBJS) $(MTCP_ASM_OBJS)
 TLSTEST_CPP_OBJS = $(patsubst %.cpp,$(OBJDIR)/%.obj,$(notdir $(TLSTEST_CPP_SRC)))
 TLSTEST_C_OBJS   = $(patsubst %.c,$(OBJDIR)/%.obj,$(notdir $(TLSTEST_C_SRC)))
 TLSTEST_OBJS     = $(TLSTEST_CPP_OBJS) $(TLSTEST_C_OBJS) $(MTCP_OBJS)
+
+NOSGEM_CPP_OBJS = $(patsubst %.cpp,$(OBJDIR)/%.obj,$(notdir $(NOSGEM_CPP_SRC)))
+NOSGEM_C_OBJS   = $(patsubst %.c,$(OBJDIR)/%.obj,$(notdir $(NOSGEM_C_SRC)))
+NOSGEM_OBJS     = $(NOSGEM_CPP_OBJS) $(NOSGEM_C_OBJS) $(MTCP_OBJS)
 
 # VPATH: let make find sources by basename
 VPATH = lib/wolfssl/wolfcrypt/src:lib/wolfssl/src:$(MTCP_SRC):src
@@ -175,9 +196,13 @@ TLSTEST.EXE: $(TLSTEST_OBJS) $(WOLFLIB)
 	    $(foreach o,$(TLSTEST_OBJS),file $(o)) \
 	    library $(WOLFLIB)
 
-# NOSGEM.EXE -- full application (later phases)
-NOSGEM.EXE: $(WOLFLIB)
-	@echo "NOSGEM.EXE: not yet implemented (Phase 3+)"
+# NOSGEM.EXE -- full application (Phase 6+)
+NOSGEM.EXE: $(NOSGEM_OBJS) $(WOLFLIB)
+	wlink system dos \
+	    option stack=8192 \
+	    name $@ \
+	    $(foreach o,$(NOSGEM_OBJS),file $(o)) \
+	    library $(WOLFLIB)
 
 clean:
 	rm -rf $(OBJDIR) $(WOLFLIB) TLSTEST.EXE NOSGEM.EXE

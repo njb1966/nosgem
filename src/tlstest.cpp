@@ -61,6 +61,8 @@ static int body_cb( const char *chunk, unsigned int len, void *user ) {
         st->is_gem = is_gemtext( st->resp->meta );
         if ( st->is_gem ) {
             printf( "--- Gemtext ---\n" );
+            nos_render_ctx_init( &st->rctx );
+            st->rctx.page_lines = 24;
             nos_render_stream_init( &st->rstream, &st->rctx );
         } else {
             printf( "--- Response ---\n" );

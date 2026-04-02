@@ -3,12 +3,36 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <conio.h>
 #include "render.h"
 #include "gemtext.h"
 
 #define NOS_WRAP_COLS 80
 
-static void print_wrapped(const char *prefix, const char *text)
+static int default_pause(void *user)
+{
+    (void)user;
+    fputs("--More--", stdout);
+    (void)getch();
+    fputs("\r        \r", stdout);
+    return 0;
+}
+
+static void render_line_break(nos_render_ctx_t *ctx)
+{
+    if (ctx == NULL) return;
+    ctx->lines_printed++;
+    if (ctx->page_lines > 0 && ctx->lines_printed >= ctx->page_lines) {
+        if (ctx->pause_fn) {
+            ctx->pause_fn(ctx->pause_user);
+        } else {
+            default_pause(NULL);
+        }
+        ctx->lines_printed = 0;
+    }
+}
+
+static void print_wrapped(nos_render_ctx_t *ctx, const char *prefix, const char *text)
 {
     unsigned int col = 0;
     const char *p = text;
@@ -58,6 +82,7 @@ static void print_wrapped(const char *prefix, const char *text)
         }
     }
     fputc('\n', stdout);
+    render_line_break(ctx);
 }
 
 static void add_link(nos_render_ctx_t *ctx, const char *url, const char *label)
@@ -79,15 +104,18 @@ static int render_parsed(const nos_gemtext_line_t *parsed, nos_render_ctx_t *ctx
     switch (parsed->type) {
         case NOS_GEMTEXT_H1:
             fputc('\n', stdout);
-            print_wrapped("# ", parsed->text);
+            render_line_break(ctx);
+            print_wrapped(ctx, "# ", parsed->text);
             break;
         case NOS_GEMTEXT_H2:
             fputc('\n', stdout);
-            print_wrapped("## ", parsed->text);
+            render_line_break(ctx);
+            print_wrapped(ctx, "## ", parsed->text);
             break;
         case NOS_GEMTEXT_H3:
             fputc('\n', stdout);
-            print_wrapped("### ", parsed->text);
+            render_line_break(ctx);
+            print_wrapped(ctx, "### ", parsed->text);
             break;
         case NOS_GEMTEXT_LINK: {
             char label[256];
@@ -100,32 +128,44 @@ static int render_parsed(const nos_gemtext_line_t *parsed, nos_render_ctx_t *ctx
             }
             add_link(ctx, parsed->url, label);
             {
-                char prefix[16];
-                sprintf(prefix, "[%u] ", ctx->link_count);
-                print_wrapped(prefix, label);
-            }
+                    char prefix[16];
+                    sprintf(prefix, "[%u] ", ctx->link_count);
+                    print_wrapped(ctx, prefix, label);
+                }
             break;
         }
         case NOS_GEMTEXT_LIST:
-            print_wrapped("* ", parsed->text);
+            print_wrapped(ctx, "* ", parsed->text);
             break;
         case NOS_GEMTEXT_QUOTE:
-            print_wrapped("> ", parsed->text);
+            print_wrapped(ctx, "> ", parsed->text);
             break;
         case NOS_GEMTEXT_PREFORMAT:
             if (parsed->text[0] == '\0') {
                 fputc('\n', stdout);
+                render_line_break(ctx);
             } else {
                 fputs(parsed->text, stdout);
                 fputc('\n', stdout);
+                render_line_break(ctx);
             }
             break;
         case NOS_GEMTEXT_TEXT:
         default:
-            print_wrapped("", parsed->text);
+            print_wrapped(ctx, "", parsed->text);
             break;
     }
     return 0;
+}
+
+void nos_render_ctx_init(nos_render_ctx_t *ctx)
+{
+    if (ctx == NULL) return;
+    ctx->link_count = 0;
+    ctx->lines_printed = 0;
+    ctx->page_lines = 0;
+    ctx->pause_fn = NULL;
+    ctx->pause_user = NULL;
 }
 
 void nos_render_stream_init(nos_render_stream_t *st, nos_render_ctx_t *ctx)
@@ -134,7 +174,10 @@ void nos_render_stream_init(nos_render_stream_t *st, nos_render_ctx_t *ctx)
     st->ctx = ctx;
     st->in_pre = 0;
     st->line_len = 0;
-    if (ctx) ctx->link_count = 0;
+    if (ctx) {
+        ctx->link_count = 0;
+        ctx->lines_printed = 0;
+    }
 }
 
 int nos_render_stream_feed(nos_render_stream_t *st, const char *data, unsigned int len)
