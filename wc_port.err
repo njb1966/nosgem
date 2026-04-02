@@ -1,0 +1,13 @@
+lib/wolfssl/wolfssl/wolfcrypt/settings.h(4132): Warning! W143: "For timing resistance / side-channel attack prevention consider using harden options"
+lib/wolfssl/wolfssl/wolfcrypt/wc_port.h(655): Warning! W202: Symbol 'wolfSSL_Atomic_Int_CompareExchange' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/wc_port.h(679): Warning! W202: Symbol 'wolfSSL_Atomic_Uint_FetchAdd' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/wc_port.h(667): Warning! W202: Symbol 'wolfSSL_Atomic_Ptr_CompareExchange' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/wc_port.h(686): Warning! W202: Symbol 'wolfSSL_Atomic_Uint_FetchSub' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/wc_port.h(693): Warning! W202: Symbol 'wolfSSL_Atomic_Uint_AddFetch' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/wc_port.h(698): Warning! W202: Symbol 'wolfSSL_Atomic_Uint_SubFetch' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/wc_port.h(703): Warning! W202: Symbol 'wolfSSL_Atomic_Uint_CompareExchange' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/types.h(472): Warning! W202: Symbol 'WC_WUR_INT' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/logging.h(286): Warning! W202: Symbol 'WOLFSSL_MSG_CERT' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/logging.h(381): Warning! W202: Symbol 'WOLFSSL_MSG_EX' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/logging.h(517): Warning! W202: Symbol 'WOLFSSL_DEBUG_PRINTF' has been defined, but not referenced
+lib/wolfssl/wolfssl/wolfcrypt/logging.h(292): Warning! W202: Symbol 'WOLFSSL_MSG_CERT_EX' has been defined, but not referenced

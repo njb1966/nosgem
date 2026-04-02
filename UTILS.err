@@ -1,0 +1,3 @@
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/UTILS.CPP(336): Warning! W391: col(32) assignment found in boolean expression
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/UTILS.CPP(1233): Warning! W014: col(0) no reference to symbol '__static_assert'
+lib/mtcp/mTCP-src_2025-01-10/TCPINC/dns.h(58): Note! N392: col(52) definition: 'void __static_assert( int * )'

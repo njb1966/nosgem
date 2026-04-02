@@ -1,0 +1,2 @@
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/UDP.CPP(512): Warning! W014: col(0) no reference to symbol '__static_assert'
+lib/mtcp/mTCP-src_2025-01-10/TCPINC/packet.h(58): Note! N392: col(52) definition: 'void __static_assert( int * )'

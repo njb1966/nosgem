@@ -1,0 +1,4 @@
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/TCP.CPP(2622): Warning! W014: col(1) no reference to symbol 'elapsedTicks'
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/TCP.CPP(2469): Note! N392: col(30) definition: 'unsigned long elapsedTicks' in 'void Tcp::drivePackets2( void )'
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/TCP.CPP(2667): Warning! W014: col(0) no reference to symbol '__static_assert'
+lib/mtcp/mTCP-src_2025-01-10/TCPINC/tcp.h(55): Note! N392: col(44) definition: 'void __static_assert( int * )'

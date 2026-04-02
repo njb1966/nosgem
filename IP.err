@@ -1,0 +1,3 @@
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/IP.CPP(1176): Warning! W007: col(41) '&array' may not produce intended result
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/IP.CPP(1340): Warning! W014: col(0) no reference to symbol '__static_assert'
+lib/mtcp/mTCP-src_2025-01-10/TCPINC/udp.h(44): Note! N392: col(40) definition: 'void __static_assert( int * )'

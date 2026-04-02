@@ -1,0 +1,5 @@
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/DNS.CPP(549): Warning! W391: col(19) assignment found in boolean expression
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/DNS.CPP(1072): Warning! W014: col(0) no reference to symbol '__static_assert'
+lib/mtcp/mTCP-src_2025-01-10/TCPINC/tcp.h(55): Note! N392: col(44) definition: 'void __static_assert( int * )'
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/DNS.CPP(1072): Warning! W014: col(0) no reference to symbol 'SectionNames'
+lib/mtcp/mTCP-src_2025-01-10/TCPLIB/DNS.CPP(604): Note! N392: col(14) definition: 'char * SectionNames[4]'
