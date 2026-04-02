@@ -109,7 +109,10 @@ TLSTEST_CPP_SRC = \
 TLSTEST_C_SRC = \
     src/entropy.c \
     src/url.c \
-    src/gemini.c
+    src/gemini.c \
+    src/tofu.c \
+    src/gemtext.c \
+    src/render.c
 
 # ---------------------------------------------------------------------------
 # Derived object lists (all flat in OBJDIR)

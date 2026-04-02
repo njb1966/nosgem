@@ -25,6 +25,7 @@ extern "C" {
 
 #include "url.h"
 #include "gemini.h"
+#include "render.h"
 
 #define DEFAULT_HOST "geminiprotocol.net"
 #define DEFAULT_PORT 1965
@@ -36,6 +37,11 @@ static void __interrupt __far ctrlBreakHandler( void ) { userAbort = 1; }
 static void shutdown_stack( int rc ) {
     Utils::endStack();
     exit( rc );
+}
+
+static int is_gemtext( const char *meta ) {
+    if ( meta == NULL ) return 0;
+    return ( strncmp( meta, "text/gemini", 11 ) == 0 );
 }
 
 int main( int argc, char *argv[] ) {
@@ -104,12 +110,21 @@ int main( int argc, char *argv[] ) {
     }
 
     if ( resp.status >= 20 && resp.status < 30 ) {
-        printf( "--- Response ---\n" );
         if ( bodyLen >= sizeof( body ) ) bodyLen = sizeof( body ) - 1;
         body[bodyLen] = '\0';
-        printf( "%s", body );
-        if ( userAbort ) printf( "\n(Aborted)\n" );
-        printf( "\n--- End ---\n" );
+        if ( is_gemtext( resp.meta ) ) {
+            nos_render_ctx_t rctx;
+            printf( "--- Gemtext ---\n" );
+            if ( nos_render_gemtext( body, bodyLen, &rctx ) != 0 ) {
+                fprintf( stderr, "Render failed\n" );
+            }
+            printf( "\n--- End ---\n" );
+        } else {
+            printf( "--- Response ---\n" );
+            printf( "%s", body );
+            if ( userAbort ) printf( "\n(Aborted)\n" );
+            printf( "\n--- End ---\n" );
+        }
     } else {
         printf( "Status: %d\n", resp.status );
         printf( "Meta: %s\n", resp.meta );
