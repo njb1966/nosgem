@@ -1,10 +1,14 @@
 @echo off
 REM NOSgem transfer helper
-REM Usage: DOSCOPY.BAT <linux-ip>
+REM Usage: DOSCOPY.BAT [linux-ip]
 
-if "%1"=="" goto usage
-
+if "%1"=="" goto defaultip
 set LINUXIP=%1
+goto haveip
+
+:defaultip
+set LINUXIP=192.168.0.97
+:haveip
 
 REM Ensure target directory exists
 if not exist C:\NOSGEM\NUL mkdir C:\NOSGEM
@@ -19,10 +23,5 @@ echo.
 echo Done. Run NOSGEM.EXE from C:\NOSGEM
 
 goto end
-
-:usage
-echo Usage: DOSCOPY.BAT ^<linux-ip^>
-
-echo Example: DOSCOPY.BAT 192.168.0.97
 
 :end
