@@ -122,6 +122,8 @@ NOSGEM_CPP_SRC = \
 
 NOSGEM_C_SRC = \
     src/main.c \
+    src/config.c \
+    src/bookmarks.c \
     src/entropy.c \
     src/url.c \
     src/gemini.c \

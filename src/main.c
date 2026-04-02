@@ -19,9 +19,9 @@
 #include "render.h"
 #include "nav.h"
 #include "ui.h"
+#include "config.h"
+#include "bookmarks.h"
 #include <wolfssl/ssl.h>
-
-#define DEFAULT_URL "gemini://geminiprotocol.net/"
 
 static volatile int userAbort = 0;
 static void __interrupt __far ctrlBreakHandler( void ) { userAbort = 1; }
@@ -43,12 +43,13 @@ typedef struct {
     nos_render_ctx_t rctx;
     nos_render_stream_t rstream;
     unsigned int raw_lines;
+    unsigned int page_lines;
 } nos_body_state_t;
 
 static void raw_line_break( nos_body_state_t *st ) {
     if ( st == NULL ) return;
     st->raw_lines++;
-    if ( st->raw_lines >= 24 ) {
+    if ( st->page_lines > 0 && st->raw_lines >= st->page_lines ) {
         fputs("--More--", stdout);
         (void)getch();
         fputs("\r        \r", stdout);
@@ -67,7 +68,7 @@ static int body_cb( const char *chunk, unsigned int len, void *user ) {
         if ( st->is_gem ) {
             printf( "--- Gemtext ---\n" );
             nos_render_ctx_init( &st->rctx );
-            st->rctx.page_lines = 24;
+            st->rctx.page_lines = st->page_lines;
             nos_render_stream_init( &st->rstream, &st->rctx );
         } else {
             printf( "--- Response ---\n" );
@@ -85,11 +86,13 @@ static int body_cb( const char *chunk, unsigned int len, void *user ) {
     return 0;
 }
 
-static int fetch_and_render( const nos_url_t *url, nos_render_ctx_t *out_ctx ) {
+static int fetch_and_render( const nos_url_t *url, nos_render_ctx_t *out_ctx, unsigned int page_lines ) {
     nos_gemini_resp_t resp;
     nos_gemini_err_t err;
     unsigned int bodyLen = 0;
     nos_body_state_t bodyState;
+
+    if ( page_lines == 0 ) page_lines = 24;
 
     if ( out_ctx ) {
         nos_render_ctx_init( out_ctx );
@@ -99,6 +102,7 @@ static int fetch_and_render( const nos_url_t *url, nos_render_ctx_t *out_ctx ) {
     bodyState.decided = 0;
     bodyState.is_gem = 0;
     bodyState.raw_lines = 0;
+    bodyState.page_lines = page_lines;
 
     if ( nos_gemini_request_stream( url, &resp, body_cb, &bodyState, &bodyLen, &err ) != 0 ) {
         fprintf( stderr, "Gemini request failed: %s\n", err.msg[0] ? err.msg : "unknown" );
@@ -125,6 +129,29 @@ static int fetch_and_render( const nos_url_t *url, nos_render_ctx_t *out_ctx ) {
     return 0;
 }
 
+static int render_homepage( const char *path, nos_render_ctx_t *links, unsigned int page_lines ) {
+    FILE *homeFile;
+    char buf[512];
+    unsigned int read;
+    nos_render_stream_t st;
+
+    if ( links == NULL ) return -1;
+
+    homeFile = fopen( path, "r" );
+    if ( homeFile == NULL ) return -1;
+
+    nos_render_ctx_init( links );
+    links->page_lines = page_lines;
+    nos_render_stream_init( &st, links );
+
+    while ( (read = (unsigned int)fread( buf, 1, sizeof( buf ), homeFile )) > 0 ) {
+        if ( nos_render_stream_feed( &st, buf, read ) != 0 ) break;
+    }
+    (void)nos_render_stream_flush( &st );
+    fclose( homeFile );
+    return 0;
+}
+
 static int parse_user_url( const char *input, nos_url_t *out ) {
     char temp[600];
     if ( input == NULL || out == NULL ) return -1;
@@ -136,6 +163,20 @@ static int parse_user_url( const char *input, nos_url_t *out ) {
     strcpy( temp, "gemini://" );
     strcat( temp, input );
     return nos_url_parse( temp, out );
+}
+
+static void make_current_url( const nos_url_t *cur, char *out, unsigned int outMax ) {
+    if ( out == NULL || outMax == 0 || cur == NULL ) return;
+    out[0] = '\0';
+    if ( strlen( "gemini://" ) + strlen( cur->host ) + strlen( cur->path ) + 16 >= outMax ) return;
+    strcat( out, "gemini://" );
+    strcat( out, cur->host );
+    if ( cur->port != 1965 ) {
+        char portbuf[16];
+        sprintf( portbuf, ":%u", cur->port );
+        strcat( out, portbuf );
+    }
+    strcat( out, cur->path );
 }
 
 static int is_number( const char *s ) {
@@ -153,6 +194,8 @@ int main( int argc, char *argv[] ) {
     nos_nav_t history;
     nos_render_ctx_t links;
     char input[256];
+    nos_config_t cfg;
+    FILE *homeFile;
 
     (void)argc;
     (void)argv;
@@ -167,8 +210,11 @@ int main( int argc, char *argv[] ) {
         return 1;
     }
 
-    if ( nos_url_parse( DEFAULT_URL, &current ) != 0 ) {
-        fprintf( stderr, "Invalid default URL\n" );
+    nos_config_defaults( &cfg );
+    (void)nos_config_load( &cfg );
+
+    if ( nos_url_parse( cfg.home, &current ) != 0 ) {
+        fprintf( stderr, "Invalid HOME in config\n" );
         shutdown_stack( 1 );
     }
 
@@ -180,16 +226,61 @@ int main( int argc, char *argv[] ) {
     nos_nav_init( &history );
 
     while ( 1 ) {
+    if ( strcmp( current.host, "local" ) == 0 && strcmp( current.path, "/homepage" ) == 0 ) {
+        printf( "\n== HOME ==\n" );
+        if ( render_homepage( NOS_HOMEPAGE_PATH, &links, cfg.page_lines ) != 0 ) {
+            printf( "Failed to open HOMEPAGE.GEM\n" );
+        }
+    } else if ( strcmp( current.host, "local" ) == 0 && strcmp( current.path, "/bookmarks" ) == 0 ) {
+        printf( "\n== BOOKMARKS ==\n" );
+        if ( render_homepage( NOS_BOOKMARKS_PATH, &links, cfg.page_lines ) != 0 ) {
+            printf( "Failed to open BOOKMARKS.GEM\n" );
+        }
+    } else {
         printf( "\n== %s:%u%s ==\n", current.host, current.port, current.path );
-        if ( fetch_and_render( &current, &links ) != 0 ) {
+        if ( fetch_and_render( &current, &links, cfg.page_lines ) != 0 ) {
             fprintf( stderr, "Fetch failed\n" );
         }
+        }
 
-        if ( nos_ui_prompt( "Command (number/url/b/r/q): ", input, sizeof( input ) ) != 0 ) break;
-        if ( input[0] == '\0' ) continue;
+        if ( nos_ui_prompt( "Command (number/url/b/r/h/B/a/q): ", input, sizeof( input ) ) != 0 ) break;
+    if ( input[0] == '\0' ) continue;
 
-        if ( strcmp( input, "q" ) == 0 ) break;
-        if ( strcmp( input, "r" ) == 0 ) continue;
+    if ( strcmp( input, "q" ) == 0 ) break;
+    if ( strcmp( input, "r" ) == 0 ) continue;
+    if ( strcmp( input, "h" ) == 0 ) {
+        nos_nav_push( &history, &current );
+        strcpy( current.host, "local" );
+        current.port = 0;
+        strcpy( current.path, "/homepage" );
+        continue;
+    }
+    if ( strcmp( input, "B" ) == 0 ) {
+        nos_nav_push( &history, &current );
+        strcpy( current.host, "local" );
+        current.port = 0;
+        strcpy( current.path, "/bookmarks" );
+        continue;
+    }
+    if ( strcmp( input, "a" ) == 0 ) {
+        char label[128];
+        char urlbuf[600];
+        make_current_url( &current, urlbuf, sizeof( urlbuf ) );
+        if ( urlbuf[0] == '\0' ) {
+            printf( "URL too long\n" );
+            continue;
+        }
+        if ( nos_ui_prompt( "Label (optional): ", label, sizeof( label ) ) != 0 ) {
+            printf( "Cancelled\n" );
+            continue;
+        }
+        if ( nos_bookmarks_add( urlbuf, label ) != 0 ) {
+            printf( "Failed to write bookmarks\n" );
+        } else {
+            printf( "Bookmarked\n" );
+        }
+        continue;
+    }
         if ( strcmp( input, "b" ) == 0 ) {
             if ( nos_nav_pop( &history, &next ) == 0 ) {
                 current = next;
@@ -214,10 +305,10 @@ int main( int argc, char *argv[] ) {
             continue;
         }
 
-        if ( parse_user_url( input, &next ) != 0 ) {
-            printf( "Invalid URL\n" );
-            continue;
-        }
+    if ( parse_user_url( input, &next ) != 0 ) {
+        printf( "Invalid URL\n" );
+        continue;
+    }
         nos_nav_push( &history, &current );
         current = next;
     }
