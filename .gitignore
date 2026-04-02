@@ -1,0 +1,27 @@
+# Build artifacts
+obj/
+*.o
+*.obj
+*.exe
+*.EXE
+*.lib
+*.LIB
+*.a
+*.dll
+*.so
+*.dylib
+
+# Logs and error dumps
+*.err
+
+# Editor/OS files
+.DS_Store
+Thumbs.db
+
+# Local configs
+*.local
+
+# Packaging
+*.zip
+*.tar
+*.gz
