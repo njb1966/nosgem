@@ -44,6 +44,37 @@ static int is_gemtext( const char *meta ) {
     return ( strncmp( meta, "text/gemini", 11 ) == 0 );
 }
 
+typedef struct {
+    const nos_gemini_resp_t *resp;
+    int decided;
+    int is_gem;
+    nos_render_ctx_t rctx;
+    nos_render_stream_t rstream;
+} nos_body_state_t;
+
+static int body_cb( const char *chunk, unsigned int len, void *user ) {
+    nos_body_state_t *st = (nos_body_state_t *)user;
+    if ( st == NULL || st->resp == NULL ) return -1;
+
+    if ( !st->decided ) {
+        st->decided = 1;
+        st->is_gem = is_gemtext( st->resp->meta );
+        if ( st->is_gem ) {
+            printf( "--- Gemtext ---\n" );
+            nos_render_stream_init( &st->rstream, &st->rctx );
+        } else {
+            printf( "--- Response ---\n" );
+        }
+    }
+
+    if ( st->is_gem ) {
+        if ( nos_render_stream_feed( &st->rstream, chunk, len ) != 0 ) return -1;
+    } else {
+        if ( fwrite( chunk, 1, len, stdout ) != len ) return -1;
+    }
+    return 0;
+}
+
 int main( int argc, char *argv[] ) {
     const char   *host = DEFAULT_HOST;
     unsigned int  port = DEFAULT_PORT;
@@ -51,8 +82,8 @@ int main( int argc, char *argv[] ) {
     nos_url_t     url;
     nos_gemini_resp_t resp;
     nos_gemini_err_t  err;
-    char          body[8192];
     unsigned int  bodyLen;
+    nos_body_state_t bodyState;
 
     if ( argc >= 2 ) rawUrl = argv[1];
     if ( argc >= 3 ) port = (unsigned int)atoi( argv[2] );
@@ -104,33 +135,35 @@ int main( int argc, char *argv[] ) {
 
     printf( "Requesting: gemini://%s:%u%s\n\n", url.host, url.port, url.path );
 
-    if ( nos_gemini_request( &url, &resp, body, sizeof( body ), &bodyLen, &err ) != 0 ) {
+    bodyLen = 0;
+    bodyState.resp = &resp;
+    bodyState.decided = 0;
+    bodyState.is_gem = 0;
+
+    if ( nos_gemini_request_stream( &url, &resp, body_cb, &bodyState, &bodyLen, &err ) != 0 ) {
         fprintf( stderr, "Gemini request failed: %s\n", err.msg[0] ? err.msg : "unknown" );
         shutdown_stack( 1 );
     }
 
     if ( resp.status >= 20 && resp.status < 30 ) {
-        if ( bodyLen >= sizeof( body ) ) bodyLen = sizeof( body ) - 1;
-        body[bodyLen] = '\0';
-        if ( is_gemtext( resp.meta ) ) {
-            nos_render_ctx_t rctx;
-            printf( "--- Gemtext ---\n" );
-            if ( nos_render_gemtext( body, bodyLen, &rctx ) != 0 ) {
+        if ( !bodyState.decided ) {
+            printf( "--- Response ---\n" );
+        }
+        if ( bodyState.is_gem ) {
+            if ( nos_render_stream_flush( &bodyState.rstream ) != 0 ) {
                 fprintf( stderr, "Render failed\n" );
             }
-            printf( "\n--- End ---\n" );
-        } else {
-            printf( "--- Response ---\n" );
-            printf( "%s", body );
-            if ( userAbort ) printf( "\n(Aborted)\n" );
-            printf( "\n--- End ---\n" );
         }
+        if ( userAbort ) printf( "\n(Aborted)\n" );
+        printf( "\n--- End ---\n" );
     } else {
         printf( "Status: %d\n", resp.status );
         printf( "Meta: %s\n", resp.meta );
     }
 
-    wolfSSL_Cleanup();
+    if ( getenv( "NOS_SKIP_WOLFSSL_CLEANUP" ) == NULL ) {
+        wolfSSL_Cleanup();
+    }
     shutdown_stack( 0 );
     return 0;
 }

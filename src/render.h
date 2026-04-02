@@ -16,10 +16,24 @@ typedef struct {
     unsigned int link_count;
 } nos_render_ctx_t;
 
+typedef struct {
+    nos_render_ctx_t *ctx;
+    int in_pre;
+    char line[1024];
+    unsigned int line_len;
+} nos_render_stream_t;
+
 /*
  * nos_render_gemtext -- render gemtext body to stdout and collect links.
  * Returns 0 on success, -1 on error.
  */
 int nos_render_gemtext(const char *body, unsigned int len, nos_render_ctx_t *ctx);
+
+/*
+ * Streaming renderer helpers
+ */
+void nos_render_stream_init(nos_render_stream_t *st, nos_render_ctx_t *ctx);
+int nos_render_stream_feed(nos_render_stream_t *st, const char *data, unsigned int len);
+int nos_render_stream_flush(nos_render_stream_t *st);
 
 #endif /* NOS_RENDER_H */
